@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluación Diagnóstica de Matemática - 3ro BGU</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- KaTeX CDN para renderizado de fórmulas y fracciones exactas -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .katex-display { margin: 0.4em 0 !important; }
+        .katex { font-size: 1.12em; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen py-6 px-4">
+
+    <!-- BARRA FLOTANTE DE TEMPORIZADOR DE 1 HORA -->
+    <div class="sticky top-2 z-40 max-w-4xl mx-auto mb-4">
+        <div class="bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex justify-between items-center border border-slate-700">
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+                <span class="text-xs md:text-sm font-bold uppercase tracking-wide text-slate-300">Evaluación en Vivo</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-slate-400 font-semibold hidden md:inline">Tiempo Restante:</span>
+                <div id="timerBox" class="bg-slate-800 border border-slate-700 px-4 py-1.5 rounded-lg flex items-center gap-2 font-mono text-lg font-extrabold text-blue-400">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span id="timerDisplay">60:00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA DE INTENTO AGOTADO -->
+    <div id="alreadySubmittedOverlay" class="hidden max-w-4xl mx-auto mb-6 bg-red-50 border-2 border-red-500 rounded-2xl p-6 text-center shadow-lg">
+        <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl font-bold">
+            🚫
+        </div>
+        <h2 class="text-xl font-extrabold text-red-900 mb-1">INTENTO AGOTADO - EVALUACIÓN COMPLETADA</h2>
+        <p class="text-sm text-red-700 mb-3">Ya has registrado tu único intento permitido para esta evaluación. Tus respuestas han sido guardadas en Google Sheets.</p>
+        
+        <div class="inline-block bg-white border border-red-300 px-6 py-2 rounded-xl text-lg font-black text-red-900 shadow-sm mb-4" id="savedScoreText">
+            Calificación Registrada: --/10
+        </div>
+
+        <!-- BOTÓN DE DESBLOQUEO PROTEGIDO CON CLAVE 2711 -->
+        <div class="pt-2 border-t border-red-200 mt-2">
+            <button onclick="resetTeacherAttempt()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2 rounded-lg shadow transition">
+                🔒 Desbloquear Intento (Requiere Clave Docente)
+            </button>
+        </div>
+    </div>
+
+    <div id="mainExamCard" class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl border border-slate-300 overflow-hidden">
+        
+        <!-- ENCABEZADO INSTITUCIONAL -->
+        <div class="p-6 border-b-2 border-slate-800 bg-slate-50">
+            <div class="grid grid-cols-12 gap-2 text-xs md:text-sm border border-slate-400 bg-white shadow-sm">
+                <div class="col-span-3 p-2 border-r border-b border-slate-400 font-semibold bg-slate-100">Nivel: Bachillerato</div>
+                <div class="col-span-3 p-2 border-r border-b border-slate-400 font-semibold bg-slate-100">Área: Matemática</div>
+                <div class="col-span-3 p-2 border-r border-b border-slate-400 font-semibold bg-slate-100">Asignatura: Matemática</div>
+                <div class="col-span-3 p-2 border-b border-slate-400 text-center font-extrabold bg-amber-100 text-amber-900">CALIFICACIÓN / 10</div>
+
+                <div class="col-span-4 p-2 border-r border-b border-slate-400 font-medium">Curso/año BGU: <strong>TERCEROS</strong></div>
+                <div class="col-span-5 p-2 border-r border-b border-slate-400 font-medium">Trimestre: <strong>II TRIMESTRE</strong></div>
+                <div class="col-span-3 p-2 border-b border-slate-400 font-medium">Límite: <strong>1 Hora (1 solo intento)</strong></div>
+
+                <div class="col-span-12 p-2 border-b border-slate-400 font-medium bg-slate-50 flex justify-between items-center">
+                    <span>Nombre del Docente: <strong>Msc. Edwin Lliguipuma E.</strong></span>
+                    <button onclick="resetTeacherAttempt()" class="text-xs text-slate-400 hover:text-slate-600 font-semibold">🔒 Acceso Docente</button>
+                </div>
+            </div>
+
+            <!-- INSTRUCCIONES -->
+            <div class="mt-4 p-3.5 bg-amber-50 border-l-4 border-amber-500 rounded-r text-xs md:text-sm text-amber-950">
+                <p class="font-bold text-amber-900 mb-1">✏️ INSTRUCCIONES DE LA EVALUACIÓN:</p>
+                <ul class="list-disc list-inside space-y-0.5 text-slate-700">
+                    <li>Dispones de exactamente <strong>1 HORA (60:00 min)</strong> para resolver las 10 preguntas (1 punto c/u).</li>
+                    <li>Solo dispones de <strong>1 INTENTO PERMITIDO</strong>. Al finalizar el tiempo o enviar, se cerrará el acceso.</li>
+                    <li>Selecciona tu especialidad e ingresa tu nombre completo para desplegar el formulario.</li>
+                </ul>
+            </div>
+
+            <!-- DATOS INFORMATIVOS -->
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 bg-blue-50/70 p-4 rounded-xl border border-blue-200">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">ESTUDIANTE (Nombre Completo) *</label>
+                    <input type="text" id="studentName" required placeholder="Ingrese sus nombres y apellidos completos" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">ESPECIALIDAD *</label>
+                    <select id="specialty" onchange="onSpecialtyChange()" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white">
+                        <option value="informatica">Informática</option>
+                        <option value="contabilidad">Contabilidad</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">PARALELO *</label>
+                    <select id="parallel" class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600 bg-white">
+                        <!-- Opciones dinámicas -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">CURSO</label>
+                    <input type="text" value="3ro BGU" disabled class="w-full bg-slate-200 border border-slate-300 text-slate-700 font-bold rounded-md px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">ASIGNATURA</label>
+                    <input type="text" value="Matemática" disabled class="w-full bg-slate-200 border border-slate-300 text-slate-700 font-bold rounded-md px-3 py-2 text-sm">
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR DE PREGUNTAS -->
+        <form id="examForm" class="p-6 space-y-8">
+            <div id="questionsContainer" class="space-y-8"></div>
+
+            <!-- BOTÓN DE ENVÍO -->
+            <div class="pt-4 text-center">
+                <button type="button" onclick="submitExam(false)" id="submitBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-10 py-3.5 rounded-xl shadow-lg transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2 mx-auto text-base">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    FINALIZAR Y ENVIAR EVALUACIÓN
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- MODAL DE RESULTADO FINAL -->
+    <div id="resultModal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 text-center shadow-2xl border border-slate-200">
+            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-extrabold" id="scoreBadge">
+                0/10
+            </div>
+            <h3 class="text-xl font-bold text-slate-900 mb-1">¡Evaluación Enviada Exitosamente!</h3>
+            <p class="text-slate-600 text-sm mb-4">Tus respuestas y nota han sido procesadas y registradas en Google Sheets.</p>
+            <div class="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-3 rounded-lg mb-4 font-semibold">
+                ✓ El intento único ha sido registrado correctamente.
+            </div>
+            <button onclick="location.reload()" class="w-full bg-slate-800 text-white py-2.5 rounded-lg text-sm font-bold hover:bg-slate-900 transition">
+                Aceptar y Cerrar
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxLLOzCD_ZvuPN9YLe1-yg3exx7rXKalmfNIm4SytFQn7SglxXdwWrH0ZD976odbKkhlQ/exec';
+        const EXAM_DURATION_SECONDS = 3600; // 1 Hora = 3600 segundos
+        const TEACHER_PIN = "2711"; // CLAVE SECRETA DE DOCENTE
+        let timerInterval = null;
+
+        // BANCO DE 10 PREGUNTAS DE 3RO BGU CON INDICADORES DE EVALUACIÓN
+        const examDatabase = {
+            informatica: [
+                {
+                    id: 1, type: 'mc', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función exponencial a partir de aˣ, halla su dominio, recorrido, asíntotas e intersecciones con los ejes. (Ref. I.M.5.3.5.)',
+                    title: '1. OPCIÓN MÚLTIPLE - Análisis y Propiedades de la Función Exponencial',
+                    statement: 'Dada la función exponencial $f(x) = 2^x + 1$, cuya representación gráfica se muestra a continuación:',
+                    svg: `<svg viewBox="0 0 600 320" class="w-full h-auto bg-white border border-slate-300 rounded-lg">
+                        <g stroke="#f1f5f9" stroke-width="1">
+                            <line x1="60" y1="40" x2="540" y2="40"/><line x1="60" y1="90" x2="540" y2="90"/>
+                            <line x1="60" y1="140" x2="540" y2="140"/><line x1="60" y1="190" x2="540" y2="190"/><line x1="60" y1="240" x2="540" y2="240"/>
+                            <line x1="120" y1="20" x2="120" y2="280"/><line x1="180" y1="20" x2="180" y2="280"/><line x1="240" y1="20" x2="240" y2="280"/><line x1="300" y1="20" x2="300" y2="280"/><line x1="360" y1="20" x2="360" y2="280"/><line x1="420" y1="20" x2="420" y2="280"/><line x1="480" y1="20" x2="480" y2="280"/><line x1="540" y1="20" x2="540" y2="280"/>
+                        </g>
+                        <rect x="60" y="20" width="480" height="260" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+                        <line x1="60" y1="240" x2="540" y2="240" stroke="#0f172a" stroke-width="1.5"/>
+                        <line x1="360" y1="20" x2="360" y2="280" stroke="#0f172a" stroke-width="1.5"/>
+                        <line x1="60" y1="190" x2="540" y2="190" stroke="#dc2626" stroke-width="2" stroke-dasharray="5,4"/>
+                        <path d="M 60,188 C 180,185 240,178 300,165 C 330,155 350,148 360,140 C 390,115 410,98 420,90 C 430,80 440,60 450,40" fill="none" stroke="#0d9488" stroke-width="3"/>
+                        <circle cx="360" cy="140" r="4.5" fill="#dc2626"/>
+                        <text x="360" y="255" text-anchor="middle" font-size="11" font-weight="bold">0</text>
+                        <text x="420" y="255" text-anchor="middle" font-size="11" font-weight="bold">1</text>
+                        <text x="300" y="255" text-anchor="middle" font-size="11" font-weight="bold">-1</text>
+                        <text x="350" y="194" text-anchor="end" font-size="11" fill="#dc2626" font-weight="bold">y=1</text>
+                        <text x="350" y="144" text-anchor="end" font-size="11" fill="#0f172a" font-weight="bold">2</text>
+                        <text x="350" y="94" text-anchor="end" font-size="11" fill="#0f172a" font-weight="bold">3</text>
+                        <text x="350" y="44" text-anchor="end" font-size="11" fill="#0f172a" font-weight="bold">4</text>
+                    </svg>`,
+                    statement_extra: 'A partir del análisis gráfico y analítico de la función $f(x) = 2^x + 1$, identifique la alternativa que contiene correctamente su dominio, recorrido (rango) y la ecuación de su asíntota horizontal:',
+                    options: [
+                        { id: 'a', text: 'a) Dominio: $\\mathbb{R}$; Recorrido: $(1, +\\infty)$; Asíntota horizontal: $y = 1$.' },
+                        { id: 'b', text: 'b) Dominio: $(0, +\\infty)$; Recorrido: $\\mathbb{R}$; Asíntota horizontal: $x = 0$.' },
+                        { id: 'c', text: 'c) Dominio: $\\mathbb{R}$; Recorrido: $(0, +\\infty)$; Asíntota horizontal: $y = 0$.' },
+                        { id: 'd', text: 'd) Dominio: $(1, +\\infty)$; Recorrido: $\\mathbb{R}$; Asíntota horizontal: $y = 2$.' }
+                    ],
+                    correct: 'a'
+                },
+                {
+                    id: 2, type: 'mc', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función exponencial a partir de aˣ, halla su dominio, recorrido, asíntotas e intersecciones con los ejes. (Ref. I.M.5.3.5.)',
+                    title: '2. OPCIÓN MÚLTIPLE - Intersección y Monotonía Exponencial',
+                    statement: 'Dada la función exponencial $f(x) = 2^x + 1$, el punto de intersección exacto con el eje Y (eje vertical) y su comportamiento de monotonía son:',
+                    options: [
+                        { id: 'a', text: 'a) Punto de corte en $(0, 2)$ y es una función estrictamente creciente en todo su dominio.' },
+                        { id: 'b', text: 'b) Punto de corte en $(0, 1)$ y es una función estrictamente decreciente.' },
+                        { id: 'c', text: 'c) Punto de corte en $(1, 0)$ y es una función constante.' },
+                        { id: 'd', text: 'd) Punto de corte en $(0, 0)$ y es una función decreciente.' }
+                    ],
+                    correct: 'a'
+                },
+                {
+                    id: 3, type: 'mc', pts: 1,
+                    indicator: 'Aplica propiedades de los logaritmos para resolver operaciones con números reales. (Ref. I.M.5.3.5.)',
+                    title: '3. OPCIÓN MÚLTIPLE - Simplificación Numérica con Logaritmos',
+                    statement: 'Al aplicar las propiedades de los logaritmos (del producto y del cociente) para simplificar la expresión numérica $E = \\log_2(4) + \\log_2(64) - \\log_2(8)$, el valor numérico final simplificado de $E$ es:',
+                    options: [
+                        { id: 'a', text: 'a) $E = 5$' },
+                        { id: 'b', text: 'b) $E = 4$' },
+                        { id: 'c', text: 'c) $E = 3$' },
+                        { id: 'd', text: 'd) $E = 6$' }
+                    ],
+                    correct: 'a'
+                },
+                {
+                    id: 4, type: 'mc', pts: 1,
+                    indicator: 'Aplica propiedades de los logaritmos para resolver operaciones con números reales. (Ref. I.M.5.3.5.)',
+                    title: '4. OPCIÓN MÚLTIPLE - Propiedad del Argumento Unificado',
+                    statement: 'Al transformar la suma y resta de logaritmos $E = \\log_2(4) + \\log_2(64) - \\log_2(8)$ en un solo argumento utilizando $\\log_b(A\\cdot B / C) = \\log_b(N)$, el valor del argumento $N$ obtenido es:',
+                    options: [
+                        { id: 'a', text: 'a) $N = \\dfrac{4 \\cdot 64}{8} = 32$, por lo que $\\log_2(32) = 5$.' },
+                        { id: 'b', text: 'b) $N = 16$, por lo que $\\log_2(16) = 4$.' },
+                        { id: 'c', text: 'c) $N = 64$, por lo que $\\log_2(64) = 6$.' },
+                        { id: 'd', text: 'd) $N = 8$, por lo que $\\log_2(8) = 3$.' }
+                    ],
+                    correct: 'a'
+                },
+                {
+                    id: 5, type: 'vf', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función logarítmica como inversa de la función exponencial; aplica propiedades. (Ref. I.M.5.3.5.)',
+                    title: '5. VERDADERO O FALSO - Dominio de la Función Logarítmica',
+                    statement: 'Con base en el estudio teórico y la gráfica cartesiana comparativa entre $g(x) = \\log_2(x)$ y $f(x) = 2^x$, el dominio de la función logarítmica $g(x) = \\log_2(x)$ corresponde al intervalo de números reales positivos $(0, +\\infty)$.',
+                    correct: 'V'
+                },
+                {
+                    id: 6, type: 'vf', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función logarítmica como inversa de la función exponencial; aplica propiedades. (Ref. I.M.5.3.5.)',
+                    title: '6. VERDADERO O FALSO - Asíntota de la Función Logarítmica',
+                    statement: 'La función logarítmica $g(x) = \\log_2(x)$ posee una asíntota horizontal definida por el eje de las abscisas en la recta $y = 0$.',
+                    correct: 'F'
+                },
+                {
+                    id: 7, type: 'vf', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función logarítmica como inversa de la función exponencial; aplica propiedades. (Ref. I.M.5.3.5.)',
+                    title: '7. VERDADERO O FALSO - Simetría entre Funciones Inversas',
+                    statement: 'La representación gráfica de la función logarítmica $g(x) = \\log_2(x)$ es perfectamente simétrica a la función exponencial $f(x) = 2^x$ con respecto a la recta bisectriz $y = x$.',
+                    svg: `<svg viewBox="0 0 600 280" class="w-full h-auto bg-white border border-slate-300 rounded-lg">
+                        <g stroke="#f1f5f9" stroke-width="1">
+                            <line x1="60" y1="30" x2="540" y2="30"/><line x1="60" y1="80" x2="540" y2="80"/>
+                            <line x1="60" y1="130" x2="540" y2="130"/><line x1="60" y1="180" x2="540" y2="180"/><line x1="60" y1="230" x2="540" y2="230"/>
+                            <line x1="140" y1="20" x2="140" y2="250"/><line x1="190" y1="20" x2="190" y2="250"/><line x1="240" y1="20" x2="240" y2="250"/><line x1="290" y1="20" x2="290" y2="250"/><line x1="340" y1="20" x2="340" y2="250"/>
+                        </g>
+                        <rect x="60" y="20" width="480" height="230" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+                        <line x1="60" y1="180" x2="540" y2="180" stroke="#0f172a" stroke-width="1.5"/>
+                        <line x1="240" y1="20" x2="240" y2="250" stroke="#0f172a" stroke-width="1.5"/>
+                        <line x1="90" y1="330" x2="440" y2="-20" stroke="#ef4444" stroke-width="3" stroke-opacity="0.4"/>
+                        <line x1="80" y1="340" x2="450" y2="-30" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,4"/>
+                        <path d="M 60,173 C 140,165 200,150 240,130 C 270,105 285,80 290,30" fill="none" stroke="#0d9488" stroke-width="2.5"/>
+                        <path d="M 246,330 C 252,280 265,230 290,180 C 315,155 340,140 440,80" fill="none" stroke="#0284c7" stroke-width="2.5"/>
+                        <circle cx="240" cy="180" r="5" fill="#475569"/>
+                        <text x="240" y="196" text-anchor="middle" font-size="11" font-weight="bold">0</text>
+                        <text x="290" y="196" text-anchor="middle" font-size="11" font-weight="bold">1</text>
+                        <text x="228" y="134" text-anchor="end" font-size="11" font-weight="bold">1</text>
+                        <text x="285" y="45" font-size="11" fill="#0d9488" font-weight="bold">f(x)=2ˣ</text>
+                        <text x="350" y="125" font-size="11" fill="#0284c7" font-weight="bold">g(x)=log₂(x)</text>
+                        <text x="380" y="45" font-size="11" fill="#dc2626" font-weight="bold">y = x</text>
+                    </svg>`,
+                    correct: 'V'
+                },
+                {
+                    id: 8, type: 'vf', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función exponencial a partir de aˣ, halla su dominio, recorrido y asíntotas. (Ref. I.M.5.3.5.)',
+                    title: '8. VERDADERO O FALSO - Asíntota Horizontal de la Exponencial Básica',
+                    statement: 'La asíntota horizontal de la función exponencial básica $f(x) = 2^x$ está ubicada exactamente en la recta $y = 0$ (el eje horizontal).',
+                    correct: 'V'
+                },
+                {
+                    id: 9, type: 'mc', pts: 1,
+                    indicator: 'Aplica propiedades de los exponentes para resolver ecuaciones exponenciales. (Ref. I.M.5.3.5.)',
+                    title: '9. OPCIÓN MÚLTIPLE - Resolución de Ecuaciones Exponenciales',
+                    statement: 'Dada la ecuación exponencial $3^{2x - 1} = 81$. Al descomponer la constante 81 en potencia de base 3 ($81 = 3^4$) e igualar los exponentes ($2x - 1 = 4$), el valor exacto de $x$ que satisface la ecuación es:',
+                    options: [
+                        { id: 'a', text: 'a) $x = 5/2$' },
+                        { id: 'b', text: 'b) $x = 2$' },
+                        { id: 'c', text: 'c) $x = 3$' },
+                        { id: 'd', text: 'd) $x = 3/2$' }
+                    ],
+                    correct: 'a'
+                },
+                {
+                    id: 10, type: 'mc', pts: 1,
+                    indicator: 'Identifica las sucesiones según sus características y halla los parámetros desconocidos. (Ref. I.M.5.4.1.)',
+                    title: '10. OPCIÓN MÚLTIPLE - Problema de Sucesiones en Medicina',
+                    statement: 'Un paciente recibe una dosis inicial de $80\\text{ mg}$ de un medicamento ($a_1 = 80$). Si el organismo elimina la mitad ($50\\%$) del fármaco presente cada 3 horas, ¿cuántos miligramos de medicamento quedarán en la sangre al cabo de la 5.ª etapa ($a_5$)?',
+                    options: [
+                        { id: 'a', text: 'a) $a_5 = 5\\text{ mg}$' },
+                        { id: 'b', text: 'b) $a_5 = 10\\text{ mg}$' },
+                        { id: 'c', text: 'c) $a_5 = 2.5\\text{ mg}$' },
+                        { id: 'd', text: 'd) $a_5 = 0\\text{ mg}$' }
+                    ],
+                    correct: 'a'
+                }
+            ],
+            contabilidad: [
+                {
+                    id: 1, type: 'mc', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función logarítmica a partir de aˣ, halla su dominio, recorrido, asíntotas e intersecciones con los ejes. (Ref. I.M.5.3.5.)',
+                    title: '1. OPCIÓN MÚLTIPLE - Análisis y Propiedades de la Función Logarítmica',
+                    statement: 'Dada la función logarítmica $f(x) = \\log_2(x)$, cuya representación gráfica cartesiana se muestra a continuación:',
+                    svg: `<svg viewBox="0 0 600 320" class="w-full h-auto bg-white border border-slate-300 rounded-lg">
+                        <g stroke="#f1f5f9" stroke-width="1">
+                            <line x1="60" y1="70" x2="540" y2="70"/><line x1="60" y1="160" x2="540" y2="160"/><line x1="60" y1="250" x2="540" y2="250"/>
+                            <line x1="60" y1="20" x2="60" y2="300"/><line x1="150" y1="20" x2="150" y2="300"/><line x1="240" y1="20" x2="240" y2="300"/><line x1="330" y1="20" x2="330" y2="300"/><line x1="420" y1="20" x2="420" y2="300"/><line x1="510" y1="20" x2="510" y2="300"/>
+                        </g>
+                        <rect x="60" y="20" width="480" height="280" fill="none" stroke="#1e293b" stroke-width="1.5"/>
+                        <line x1="60" y1="160" x2="540" y2="160" stroke="#0f172a" stroke-width="1.5"/>
+                        <line x1="150" y1="20" x2="150" y2="300" stroke="#0f172a" stroke-width="1.5"/>
+                        <line x1="150" y1="20" x2="150" y2="300" stroke="#dc2626" stroke-width="2" stroke-dasharray="5,4"/>
+                        <path d="M 165,300 C 170,240 200,180 240,160 C 300,130 380,95 510,65" fill="none" stroke="#0284c7" stroke-width="3"/>
+                        <circle cx="240" cy="160" r="4.5" fill="#0284c7"/>
+                        <text x="150" y="315" text-anchor="middle" font-size="11" font-weight="bold">0</text>
+                        <text x="240" y="315" text-anchor="middle" font-size="11" font-weight="bold">1</text>
+                        <text x="330" y="315" text-anchor="middle" font-size="11" font-weight="bold">2</text>
+                        <text x="420" y="315" text-anchor="middle" font-size="11" font-weight="bold">3</text>
+                        <text x="140" y="164" text-anchor="end" font-size="11" font-weight="bold">0</text>
+                        <text x="140" y="74" text-anchor="end" font-size="11" font-weight="bold">1</text>
+                        <text x="140" y="254" text-anchor="end" font-size="11" font-weight="bold">-1</text>
+                        <text x="160" y="35" text-anchor="start" font-size="11" fill="#dc2626" font-weight="bold">x=0</text>
+                    </svg>`,
+                    statement_extra: 'A partir del análisis gráfico y analítico de la función $f(x) = \\log_2(x)$, identifique la alternativa que contiene correctamente su dominio, recorrido (rango) y la ecuación de su asíntota:',
+                    options: [
+                        { id: 'a', text: 'a) Dominio: $(0, +\\infty)$; Recorrido: $\\mathbb{R}$; Asíntota vertical: $x = 0$.' },
+                        { id: 'b', text: 'b) Dominio: $\\mathbb{R}$; Recorrido: $(1, +\\infty)$; Asíntota horizontal: $y = 1$.' },
+                        { id: 'c', text: 'c) Dominio: $\\mathbb{R}$; Recorrido: $(0, +\\infty)$; Asíntota horizontal: $y = 0$.' },
+                        { id: 'd', text: 'd) Dominio: $(1, +\\infty)$; Recorrido: $\\mathbb{R}$; Asíntota vertical: $x = 1$.' }
+                    ],
+                    correct: 'a'
+                },
+                {
+                    id: 2, type: 'mc', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función logarítmica a partir de aˣ, halla su dominio, recorrido, asíntotas e intersecciones con los ejes. (Ref. I.M.5.3.5.)',
+                    title: '2. OPCIÓN MÚLTIPLE - Intersección con el Eje X',
+                    statement: 'En la función logarítmica fundamental $f(x) = \\log_2(x)$, el punto de intersección exacto con el eje horizontal (eje X) se produce en:',
+                    options: [
+                        { id: 'a', text: 'a) El punto $(1, 0)$, dado que $\\log_2(1) = 0$.' },
+                        { id: 'b', text: 'b) El punto $(0, 1)$, dado que $\\log_2(0) = 1$.' },
+                        { id: 'c', text: 'c) El punto $(2, 0)$, dado que $\\log_2(2) = 0$.' },
+                        { id: 'd', text: 'd) No interseca al eje X en ningún punto.' }
+                    ],
+                    correct: 'a'
+                },
+                {
+                    id: 3, type: 'mc', pts: 1,
+                    indicator: 'Aplica propiedades de los logaritmos para resolver operaciones con números reales. (Ref. I.M.5.3.5.)',
+                    title: '3. OPCIÓN MÚLTIPLE - Operación combinada de Logaritmos',
+                    statement: 'Al aplicar las propiedades de los logaritmos (del producto y del cociente) en la expresión $E = \\log_2\\left(\\dfrac{4 \\times 64}{8}\\right) = \\log_2(32)$, el valor numérico final de $E$ es:',
+                    options: [
+                        { id: 'a', text: 'a) $E = 5$' },
+                        { id: 'b', text: 'b) $E = 4$' },
+                        { id: 'c', text: 'c) $E = 3$' },
+                        { id: 'd', text: 'd) $E = 6$' }
+                    ],
+                    correct: 'a'
+                },
+                {
+                    id: 4, type: 'mc', pts: 1,
+                    indicator: 'Aplica propiedades de los logaritmos para resolver operaciones con números reales. (Ref. I.M.5.3.5.)',
+                    title: '4. OPCIÓN MÚLTIPLE - Propiedad de la Potencia del Logaritmo',
+                    statement: 'Al aplicar la propiedad del logaritmo de una potencia $\\log_b(x^n) = n \\cdot \\log_b(x)$ para simplificar $\\log_2(2^5)$, el resultado numérico directo es:',
+                    options: [
+                        { id: 'a', text: 'a) $5$, ya que $5 \\cdot \\log_2(2) = 5 \\cdot 1 = 5$.' },
+                        { id: 'b', text: 'b) $32$, ya que $2^5 = 32$.' },
+                        { id: 'c', text: 'c) $10$, ya que $2 \\times 5 = 10$.' },
+                        { id: 'd', text: 'd) $2$, ya que la base es 2.' }
+                    ],
+                    correct: 'a'
+                },
+                {
+                    id: 5, type: 'vf', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función logarítmica como inversa de la función exponencial; aplica propiedades. (Ref. I.M.5.3.5.)',
+                    title: '5. VERDADERO O FALSO - Dominio de la Función Logarítmica (Contabilidad)',
+                    statement: 'El dominio analítico de la función logarítmica $g(x) = \\log_2(x)$ corresponde al intervalo $(1, +\\infty)$.',
+                    correct: 'F'
+                },
+                {
+                    id: 6, type: 'vf', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función logarítmica como inversa de la función exponencial; aplica propiedades. (Ref. I.M.5.3.5.)',
+                    title: '6. VERDADERO O FALSO - Ecuación de la Asíntota Vertical',
+                    statement: 'La función logarítmica $g(x) = \\log_2(x)$ posee una asíntota vertical descrita por la ecuación de recta $y = 0$.',
+                    correct: 'F'
+                },
+                {
+                    id: 7, type: 'vf', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función logarítmica como inversa de la función exponencial; aplica propiedades. (Ref. I.M.5.3.5.)',
+                    title: '7. VERDADERO O FALSO - Eje de Simetría',
+                    statement: 'La gráfica de la función $g(x) = \\log_2(x)$ es simétrica a la función $f(x) = 2^x$ respecto a la recta $y = 2x$.',
+                    correct: 'F'
+                },
+                {
+                    id: 8, type: 'vf', pts: 1,
+                    indicator: 'Obtiene la gráfica de una función logarítmica como inversa de la función exponencial; aplica propiedades. (Ref. I.M.5.3.5.)',
+                    title: '8. VERDADERO O FALSO - Corte con el Eje de las Abscisas',
+                    statement: 'La curva de la función logarítmica $g(x) = \\log_2(x)$ corta obligatoriamente al eje X en el punto de coordenadas $(1, 0)$.',
+                    correct: 'V'
+                },
+                {
+                    id: 9, type: 'mc', pts: 1,
+                    indicator: 'Aplica propiedades de los exponentes para resolver ecuaciones exponenciales. (Ref. I.M.5.3.5.)',
+                    title: '9. OPCIÓN MÚLTIPLE - Resolución de Ecuación Exponencial en Base 2',
+                    statement: 'Dada la ecuación exponencial $2^{2x - 1} = 128$. Al descomponer 128 en potencia de base 2 ($128 = 2^7$) e igualar exponentes ($2x - 1 = 7$), el valor exacto de $x$ es:',
+                    options: [
+                        { id: 'a', text: 'a) $x = 4$' },
+                        { id: 'b', text: 'b) $x = 5/2$' },
+                        { id: 'c', text: 'c) $x = 2$' },
+                        { id: 'd', text: 'd) $x = 32$' }
+                    ],
+                    correct: 'a'
+                },
+                {
+                    id: 10, type: 'mc', pts: 1,
+                    indicator: 'Identifica las sucesiones según sus características y halla los parámetros desconocidos. (Ref. I.M.5.4.1.)',
+                    title: '10. OPCIÓN MÚLTIPLE - Decaimiento de Medicamento a las 12 Horas',
+                    statement: 'Un paciente recibe una dosis inicial de $80\\text{ mg}$ de un medicamento ($a_1 = 80$). Si el organismo elimina la mitad ($50\\%$) del fármaco cada 3 horas, ¿cuántos miligramos de medicamento quedarán en la sangre cuando hayan transcurrido 12 horas (etapa $a_5$)?',
+                    options: [
+                        { id: 'a', text: 'a) $5\\text{ mg}$' },
+                        { id: 'b', text: 'b) $10\\text{ mg}$' },
+                        { id: 'c', text: 'c) $20\\text{ mg}$' },
+                        { id: 'd', text: 'd) $0\\text{ mg}$' }
+                    ],
+                    correct: 'a'
+                }
+            ]
+        };
+
+        // FUNCIÓN PROTEGIDA CON LA CLAVE 2711 PARA RESETEAR INTENTO
+        function resetTeacherAttempt() {
+            const inputPin = prompt("🔑 INGRESE LA CLAVE DE DOCENTE PARA REINICIAR EL INTENTO:");
+            if (inputPin === TEACHER_PIN) {
+                localStorage.removeItem('examSubmitted_3roBGU');
+                localStorage.removeItem('examStartTime_3roBGU');
+                alert('🔓 Se ha desbloqueado la evaluación. Puedes realizar un nuevo intento.');
+                location.reload();
+            } else if (inputPin !== null) {
+                alert('❌ Clave incorrecta. Acceso denegado.');
+            }
+        }
+
+        function initTimerAndAttemptCheck() {
+            const savedAttempt = localStorage.getItem('examSubmitted_3roBGU');
+            if (savedAttempt) {
+                const data = JSON.parse(savedAttempt);
+                document.getElementById('alreadySubmittedOverlay').classList.remove('hidden');
+                document.getElementById('savedScoreText').innerText = `Calificación Registrada: ${data.score}`;
+                document.getElementById('mainExamCard').classList.add('opacity-40', 'pointer-events-none');
+                document.getElementById('timerDisplay').innerText = "FINALIZADO";
+                return;
+            }
+
+            let startTime = localStorage.getItem('examStartTime_3roBGU');
+            if (!startTime) {
+                startTime = Date.now();
+                localStorage.setItem('examStartTime_3roBGU', startTime);
+            }
+
+            timerInterval = setInterval(() => {
+                const elapsedSeconds = Math.floor((Date.now() - parseInt(startTime)) / 1000);
+                const remainingSeconds = EXAM_DURATION_SECONDS - elapsedSeconds;
+
+                if (remainingSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('timerDisplay').innerText = "00:00";
+                    alert('⏰ ¡El tiempo de 1 Hora ha expirado! Tu evaluación se enviará automáticamente.');
+                    submitExam(true);
+                } else {
+                    const minutes = Math.floor(remainingSeconds / 60);
+                    const seconds = remainingSeconds % 60;
+                    const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                    
+                    const timerEl = document.getElementById('timerDisplay');
+                    const timerBox = document.getElementById('timerBox');
+                    timerEl.innerText = formattedTime;
+
+                    if (remainingSeconds <= 300) {
+                        timerBox.classList.remove('text-blue-400', 'bg-slate-800');
+                        timerBox.classList.add('text-red-500', 'bg-red-950', 'animate-pulse', 'border-red-600');
+                    }
+                }
+            }, 1000);
+        }
+
+        function updateParallels() {
+            const spec = document.getElementById('specialty').value;
+            const parallelSelect = document.getElementById('parallel');
+            parallelSelect.innerHTML = '';
+
+            const options = spec === 'informatica' ? ['A', 'B', 'C'] : ['A', 'B'];
+            options.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = `${spec === 'informatica' ? 'Informática' : 'Contabilidad'} "${p}"`;
+                parallelSelect.appendChild(opt);
+            });
+        }
+
+        function onSpecialtyChange() {
+            updateParallels();
+            renderQuestions();
+        }
+
+        function renderQuestions() {
+            const spec = document.getElementById('specialty').value;
+            const container = document.getElementById('questionsContainer');
+            const questions = examDatabase[spec];
+
+            container.innerHTML = '';
+
+            questions.forEach((q) => {
+                const card = document.createElement('div');
+                card.className = "border border-slate-300 rounded-xl overflow-hidden shadow-sm bg-white";
+                
+                let html = `
+                    <div class="bg-slate-100 p-3 border-b border-slate-300 flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-700">ÍTEM ${q.id} DE 10</span>
+                        <span class="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded">1 PUNTO</span>
+                    </div>
+                    <div class="p-5">
+                        <div class="mb-3 p-2.5 bg-blue-50/60 border-l-4 border-blue-600 text-xs text-slate-700 rounded-r font-medium">
+                            <strong class="text-blue-900">Indicador de Evaluación:</strong> ${q.indicator}
+                        </div>
+                        <h3 class="font-bold text-slate-900 text-base mb-2">${q.title}</h3>
+                        <p class="text-sm text-slate-800 leading-relaxed mb-3">${q.statement}</p>
+                `;
+
+                if (q.svg) {
+                    html += `<div class="my-4">${q.svg}</div>`;
+                }
+
+                if (q.statement_extra) {
+                    html += `<p class="text-sm text-slate-800 leading-relaxed mb-3 font-semibold">${q.statement_extra}</p>`;
+                }
+
+                if (q.type === 'vf') {
+                    html += `
+                        <div class="flex gap-6 mt-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <label class="inline-flex items-center text-sm font-semibold cursor-pointer">
+                                <input type="radio" name="q${q.id}" value="V" required class="w-4 h-4 text-blue-600">
+                                <span class="ml-2">[ V ] Verdadero</span>
+                            </label>
+                            <label class="inline-flex items-center text-sm font-semibold cursor-pointer">
+                                <input type="radio" name="q${q.id}" value="F" class="w-4 h-4 text-blue-600">
+                                <span class="ml-2">[ F ] Falso</span>
+                            </label>
+                        </div>
+                    `;
+                } else if (q.type === 'mc') {
+                    html += `<div class="space-y-2.5 mt-3">`;
+                    q.options.forEach(opt => {
+                        html += `
+                            <label class="flex items-center p-3 border border-slate-200 rounded-lg hover:bg-blue-50/50 transition cursor-pointer">
+                                <input type="radio" name="q${q.id}" value="${opt.id}" required class="w-4 h-4 text-blue-600">
+                                <span class="ml-3 text-sm text-slate-800">${opt.text}</span>
+                            </label>
+                        `;
+                    });
+                    html += `</div>`;
+                }
+
+                html += `</div>`;
+                card.innerHTML = html;
+                container.appendChild(card);
+            });
+
+            if (window.renderMathInElement) {
+                renderMathInElement(container, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        async function submitExam(isAutoSubmit = false) {
+            const nameInput = document.getElementById('studentName');
+            const name = nameInput.value.trim();
+            const spec = document.getElementById('specialty').value;
+            const parallel = document.getElementById('parallel').value;
+
+            if (!name && !isAutoSubmit) {
+                alert('⚠️ Por favor ingrese el nombre del estudiante antes de enviar.');
+                nameInput.focus();
+                return;
+            }
+
+            const questions = examDatabase[spec];
+            let score = 0;
+            let missing = false;
+
+            questions.forEach(q => {
+                const selected = document.querySelector(`input[name="q${q.id}"]:checked`)?.value;
+                if (!selected) {
+                    missing = true;
+                } else if (selected === q.correct) {
+                    score += 1;
+                }
+            });
+
+            if (missing && !isAutoSubmit) {
+                alert('⚠️ Por favor responda las 10 preguntas antes de enviar la evaluación.');
+                return;
+            }
+
+            if (timerInterval) clearInterval(timerInterval);
+
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const fechaFormateada = `${day}/${month}/${year}, ${hours}:${minutes}`;
+
+            const finalScoreStr = `${score}/10`;
+
+            localStorage.setItem('examSubmitted_3roBGU', JSON.stringify({
+                score: finalScoreStr,
+                date: fechaFormateada
+            }));
+
+            const payload = {
+                fecha: fechaFormateada,
+                estudiante: (name || "ESTUDIANTE (TIEMPO AGOTADO)").toUpperCase(),
+                curso: '3ro BGU',
+                especialidad: spec.toUpperCase(),
+                paralelo: parallel,
+                puntaje: finalScoreStr
+            };
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            submitBtn.innerHTML = 'Enviando a Google Sheets...';
+
+            try {
+                await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (err) {
+                console.error("Error en la transmisión:", err);
+            }
+
+            document.getElementById('scoreBadge').innerText = finalScoreStr;
+            document.getElementById('resultModal').classList.remove('hidden');
+        }
+
+        window.onload = () => {
+            updateParallels();
+            renderQuestions();
+            initTimerAndAttemptCheck();
+        };
+    </script>
+</body>
+</html>
